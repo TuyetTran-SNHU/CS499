@@ -21,3 +21,5 @@ if uri:
         print(f"An error occurred while connecting to MongoDB: {e}")
 else:
     print("MongoDB URI not found. Please set the environment variable.")
+
+    #add changes
