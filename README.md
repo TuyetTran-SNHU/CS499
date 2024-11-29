@@ -4,6 +4,9 @@ affine matrix 'M = np.float32([[fx, 0, tx], [0, fy, ty]])':
 Normalize (data preprocess file 196): 
 Transpose (img = cv2.transpose(img)): 
 
+
+Identify sparse tensor: 
+
 why do I need to truncate the word if I need recognition?
 
 how a computer reads image: 
