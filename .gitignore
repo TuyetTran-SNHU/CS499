@@ -27,3 +27,4 @@ Thumbs.db
 
 # PyCharm settings (if you're using PyCharm)
 .idea/
+node_modules

@@ -104,7 +104,7 @@ class Preprocessor:
 
         # image augmentation
         '''converting image to float to agument'''
-        img = img.astype(np.float)
+        img = img.astype(np.float64)
         if self.data_augmentation:
             # photometric data augmentation 
             ''' each image in the pool have 25% chance to get GaussianBlur'''
@@ -214,7 +214,7 @@ class Preprocessor:
 def main():
     import matplotlib.pyplot as plt
 
-    img = cv2.imread('../data/test.png', cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread('./data_dir/word.png', cv2.IMREAD_GRAYSCALE)
     img_aug = Preprocessor((256, 32), data_augmentation=True).process_img(img)
 
     plt.subplot(121)

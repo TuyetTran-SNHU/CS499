@@ -9,13 +9,14 @@ from path import Path
 from data_loader import DataLoader, Batch
 from model import Model, DecoderType
 from data_preprocessor import Preprocessor
+from pathlib import Path
+import tensorflow as tf
 
 
 class FilePaths:
     """Filenames and paths to data."""
     fn_char_list = '../model/charList.txt'
     fn_summary = '../model/summary.json'
-    fn_corpus = '../data/corpus.txt'
 
 
 def get_img_height() -> int:
@@ -37,7 +38,7 @@ def write_summary(average_train_loss: List[float], char_error_rates: List[float]
 
 
 def char_list_from_file() -> List[str]:
-    with open(FilePaths.fn_char_list) as f:
+    with open('model/charList.txt') as f:
         return list(f.read())
 
 
@@ -133,10 +134,20 @@ def validate(model: Model, loader: DataLoader, line_mode: bool) -> Tuple[float, 
     return char_error_rate, word_accuracy
 
 
-def infer(model: Model, fn_img: Path) -> None:
+
+'''def infer(model: Model, fn_img: Path) -> None:
     """Recognizes text in image provided by file path."""
-    img = cv2.imread(fn_img, cv2.IMREAD_GRAYSCALE)
-    assert img is not None
+    
+    # Updated relative path using Path (automatically resolves from current script's location)
+    img_path = Path(__file__).parent / "data" / "word.png"  # Path to word.png in the 'data' folder
+
+    if not img_path.exists():
+        print(f"Error: The image file at {img_path} does not exist.")
+        return
+    
+    # Attempt to read the image
+    img = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
+    assert img is not None, f"Error: Could not load image from path: {img_path}"
 
     preprocessor = Preprocessor(get_img_size(), dynamic_width=True, padding=16)
     img = preprocessor.process_img(img)
@@ -145,7 +156,38 @@ def infer(model: Model, fn_img: Path) -> None:
     recognized, probability = model.infer_batch(batch, True)
     print(f'Recognized: "{recognized[0]}"')
     print(f'Probability: {probability[0]}')
+'''
 
+def infer(model: Model, fn_img: Path) -> None:
+    """Recognizes text in image provided by file path."""
+    
+    # Updated relative path using Path
+    img_path = Path(__file__).parent / "data_dir" / "word.png"  # Path to word.png in the 'data' folder
+
+    if not img_path.exists():
+        print(f"Error: The image file at {img_path} does not exist.")
+        return
+    
+    # Attempt to read the image
+    img = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
+    assert img is not None, f"Error: Could not load image from path: {img_path}"
+
+    preprocessor = Preprocessor(get_img_size(), dynamic_width=True, padding=16)
+    img = preprocessor.process_img(img)
+
+    batch = Batch([img], None, 1)
+
+    # Directly call the model to get predictions (logits)
+    logits = model(batch.imgs, training=False)  # Use the model's call method
+
+    # Convert logits to probabilities (if using softmax)
+    probability = tf.nn.softmax(logits, axis=-1)  # Apply softmax to logits to get probabilities
+    
+    # Decode the logits (you can add your decoding logic here if needed)
+    recognized = "Some Decoding Logic Here"  # Replace with actual decoding logic
+    
+    print(f'Recognized: "{recognized}"')
+    print(f'Probability: {probability[0]}')
 
 def parse_args() -> argparse.Namespace:
     """Parses arguments from the command line."""
@@ -187,8 +229,6 @@ def main():
         with open(FilePaths.fn_char_list, 'w') as f:
             f.write(''.join(char_list))
 
-        with open(FilePaths.fn_corpus, 'w') as f:
-            f.write(' '.join(loader.train_words + loader.validation_words))
 
         model = Model(char_list, decoder_type)
         train(model, loader, line_mode=args.line_mode, early_stopping=args.early_stopping)

@@ -1,304 +1,181 @@
 import os
-import sys
-from typing import List, Tuple
-
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras import layers, models
 
-from data_loader import Batch
+# Suppress TensorFlow warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-# Disable eager mode
-tf.compat.v1.disable_eager_execution()
-
-
-class DecoderType:
-    """CTC decoder types."""
-    BestPath = 0
-    BeamSearch = 1
-    WordBeamSearch = 2
+# Character list
+char_list = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 
 class Model:
-    """Minimalistic TF model for HTR."""
+    """TensorFlow 2.x compatible model for Handwritten Text Recognition (HTR)."""
 
-    def __init__(self,
-                 char_list: List[str],
-                 decoder_type: str = DecoderType.BestPath,
-                 must_restore: bool = False,
-                 dump: bool = False) -> None:
-        """Init model: add CNN, RNN and CTC and initialize TF."""
-        self.dump = dump
+    def __init__(self, char_list):
+        """Initialize the HTR model."""
         self.char_list = char_list
-        self.decoder_type = decoder_type
-        self.must_restore = must_restore
-        self.snap_ID = 0
+        print("Initializing model...")
+        # Build the model
+        self.model = self.build_model()
+        self.model.summary()
+        print("Model initialized successfully.")
 
-        # Whether to use normalization over a batch or a population
-        self.is_train = tf.compat.v1.placeholder(tf.bool, name='is_train')
+    def build_model(self):
+        """Build the CNN, RNN, and CTC architecture."""
+        print("Building model...")
+        # Input layer for images
+        input_imgs = layers.Input(shape=(None, None, 1), name="input_imgs")  # (Batch, Height, Width, Channels)
+        
+        # CNN layers
+        x = self.setup_cnn(input_imgs)
 
-        # input image batch
-        self.input_imgs = tf.compat.v1.placeholder(tf.float32, shape=(None, None, None))
+        # RNN layers
+        x = self.setup_rnn(x)
 
-        # setup CNN, RNN and CTC
-        self.setup_cnn()
-        self.setup_rnn()
-        self.setup_ctc()
+        # Output layer for softmax predictions
+        output = self.setup_ctc(x)
 
-        # setup optimizer to train NN
-        self.batches_trained = 0
-        self.update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
-        with tf.control_dependencies(self.update_ops):
-            self.optimizer = tf.compat.v1.train.AdamOptimizer().minimize(self.loss)
+        print("Model built successfully.")
+        return models.Model(inputs=input_imgs, outputs=output)
 
-        # initialize TF
-        self.sess, self.saver = self.setup_tf()
+    def setup_cnn(self, input_tensor):
+        """Build the CNN layers."""
+        print("Setting up CNN layers...")
+        x = input_tensor
+        filters = [32, 64, 128, 128, 256]
+        kernel_sizes = [5, 5, 3, 3, 3]
+        pool_sizes = [(2, 2), (2, 2), (2, 2), (2, 2), (1, 2)]
 
-    def setup_cnn(self) -> None:
-        """Create CNN layers."""
-        cnn_in4d = tf.expand_dims(input=self.input_imgs, axis=3)
+        for filter_size, kernel_size, pool_size in zip(filters, kernel_sizes, pool_sizes):
+            x = layers.Conv2D(filters=filter_size, kernel_size=kernel_size, padding="same")(x)
+            x = layers.BatchNormalization()(x)
+            x = layers.ReLU()(x)
+            x = layers.MaxPooling2D(pool_size=pool_size)(x)
+        print("CNN setup complete.")
+        return x
 
-        # list of parameters for the layers
-        kernel_vals = [5, 5, 3, 3, 3]
-        feature_vals = [1, 32, 64, 128, 128, 256]
-        stride_vals = pool_vals = [(2, 2), (2, 2), (1, 2), (1, 2), (1, 2)]
-        num_layers = len(stride_vals)
+    def setup_rnn(self, cnn_output):
+        """Build the RNN layers."""
+        print("Setting up RNN layers...")
+        x = layers.Reshape((-1, cnn_output.shape[-1]))(cnn_output)
+        x = layers.Bidirectional(layers.LSTM(256, return_sequences=True))(x)
+        x = layers.Bidirectional(layers.LSTM(256, return_sequences=True))(x)
+        print("RNN setup complete.")
+        return x
 
-        # create layers
-        pool = cnn_in4d  # input to first CNN layer
-        for i in range(num_layers):
-            kernel = tf.Variable(
-                tf.random.truncated_normal([kernel_vals[i], kernel_vals[i], feature_vals[i], feature_vals[i + 1]],
-                                           stddev=0.1))
-            conv = tf.nn.conv2d(input=pool, filters=kernel, padding='SAME', strides=(1, 1, 1, 1))
-            conv_norm = tf.compat.v1.layers.batch_normalization(conv, training=self.is_train)
-            relu = tf.nn.relu(conv_norm)
-            pool = tf.nn.max_pool2d(input=relu, ksize=(1, pool_vals[i][0], pool_vals[i][1], 1),
-                                    strides=(1, stride_vals[i][0], stride_vals[i][1], 1), padding='VALID')
+    def setup_ctc(self, rnn_output):
+        """Add a dense layer for CTC."""
+        print("Setting up CTC layer...")
+        return layers.Dense(len(self.char_list) + 1, activation="softmax", name="ctc_output")(rnn_output)
 
-        self.cnn_out_4d = pool
+    def compile_model(self):
+        """Compile the model with CTC loss."""
+        print("Compiling model...")
 
-    def setup_rnn(self) -> None:
-        """Create RNN layers."""
-        rnn_in3d = tf.squeeze(self.cnn_out_4d, axis=[2])
+        def ctc_loss(y_true, y_pred):
+            """Custom CTC loss function."""
+            # Ensure y_true is integer and y_pred is float
+            y_true = tf.cast(y_true, dtype=tf.int32)
+            y_pred = tf.cast(y_pred, dtype=tf.float32)
 
-        # basic cells which is used to build RNN
-        num_hidden = 256
-        cells = [tf.compat.v1.nn.rnn_cell.LSTMCell(num_units=num_hidden, state_is_tuple=True) for _ in
-                 range(2)]  # 2 layers
+            tf.print("y_true shape (before):", tf.shape(y_true))
 
-        # stack basic cells
-        stacked = tf.compat.v1.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
+            # Compute input lengths (all sequences have the same time steps)
+            input_length = tf.fill([tf.shape(y_pred)[0]], tf.shape(y_pred)[1])  # Shape: [batch_size]
 
-        # bidirectional RNN
-        # BxTxF -> BxTx2H
-        (fw, bw), _ = tf.compat.v1.nn.bidirectional_dynamic_rnn(cell_fw=stacked, cell_bw=stacked, inputs=rnn_in3d,
-                                                                dtype=rnn_in3d.dtype)
+            # Compute label lengths (count non-padded labels in y_true)
+            label_length = tf.reduce_sum(tf.cast(y_true != -1, tf.int32), axis=1)  # Shape: [batch_size]
 
-        # BxTxH + BxTxH -> BxTx2H -> BxTx1X2H
-        concat = tf.expand_dims(tf.concat([fw, bw], 2), 2)
+            # Debugging outputs
+            tf.print("y_true shape:", tf.shape(y_true))
+            tf.print("y_pred shape:", tf.shape(y_pred))
+            tf.print("input_length shape:", tf.shape(input_length))
+            tf.print("label_length shape:", tf.shape(label_length))
 
-        # project output to chars (including blank): BxTx1x2H -> BxTx1xC -> BxTxC
-        kernel = tf.Variable(tf.random.truncated_normal([1, 1, num_hidden * 2, len(self.char_list) + 1], stddev=0.1))
-        self.rnn_out_3d = tf.squeeze(tf.nn.atrous_conv2d(value=concat, filters=kernel, rate=1, padding='SAME'),
-                                     axis=[2])
+            # Compute the CTC loss
+            return tf.keras.backend.ctc_batch_cost(y_true, y_pred, input_length, label_length)
+        
+        self.model.compile(optimizer=tf.keras.optimizers.Adam(), loss=ctc_loss)
+        print("Model compiled successfully.")
 
-    def setup_ctc(self) -> None:
-        """Create CTC loss and decoder."""
-        # BxTxC -> TxBxC
-        self.ctc_in_3d_tbc = tf.transpose(a=self.rnn_out_3d, perm=[1, 0, 2])
-        # ground truth text as sparse tensor
-        self.gt_texts = tf.SparseTensor(tf.compat.v1.placeholder(tf.int64, shape=[None, 2]),
-                                        tf.compat.v1.placeholder(tf.int32, [None]),
-                                        tf.compat.v1.placeholder(tf.int64, [2]))
+    def train_batch(self, batch_imgs, batch_labels, epochs=1):
+        """Train the model with a batch of images and labels."""
+        print(f"Starting training for {epochs} epochs...")
 
-        # calc loss for batch
-        self.seq_len = tf.compat.v1.placeholder(tf.int32, [None])
-        self.loss = tf.reduce_mean(
-            input_tensor=tf.compat.v1.nn.ctc_loss(labels=self.gt_texts, inputs=self.ctc_in_3d_tbc,
-                                                  sequence_length=self.seq_len,
-                                                  ctc_merge_repeated=True))
+        # Validate shapes of inputs
+        print("Validating shapes...")
+        print("batch_imgs shape:", batch_imgs.shape)  # Should be [batch_size, height, width, channels]
+        print("batch_labels:", batch_labels)         # Should be a list of strings
+        for i, label in enumerate(batch_labels):
+            print(f"Label {i}: '{label}' (length: {len(label)})")
 
-        # calc loss for each element to compute label probability
-        self.saved_ctc_input = tf.compat.v1.placeholder(tf.float32,
-                                                        shape=[None, None, len(self.char_list) + 1])
-        self.loss_per_element = tf.compat.v1.nn.ctc_loss(labels=self.gt_texts, inputs=self.saved_ctc_input,
-                                                         sequence_length=self.seq_len, ctc_merge_repeated=True)
+        # Convert labels to sparse tensor
+        sparse_labels = self.texts_to_sparse(batch_labels)
+        
+        # Convert sparse tensor to dense representation with padding (-1)
+        dense_labels = tf.sparse.to_dense(sparse_labels, default_value=-1)
+        
+        # Further validation
+        print("sparse_labels shape:", sparse_labels.dense_shape.numpy())  # Sparse tensor shape
+        print("dense_labels shape:", dense_labels.shape)                 # Dense tensor shape
+        
+        # Train the model
+        self.model.fit(x=batch_imgs, y=dense_labels, epochs=epochs, batch_size=batch_imgs.shape[0])
+        print("Training complete.")
 
-        # best path decoding or beam search decoding
-        if self.decoder_type == DecoderType.BestPath:
-            self.decoder = tf.nn.ctc_greedy_decoder(inputs=self.ctc_in_3d_tbc, sequence_length=self.seq_len)
-        elif self.decoder_type == DecoderType.BeamSearch:
-            self.decoder = tf.nn.ctc_beam_search_decoder(inputs=self.ctc_in_3d_tbc, sequence_length=self.seq_len,
-                                                         beam_width=50)
-        # word beam search decoding (see https://github.com/githubharald/CTCWordBeamSearch)
-        elif self.decoder_type == DecoderType.WordBeamSearch:
-            # prepare information about language (dictionary, characters in dataset, characters forming words)
-            chars = ''.join(self.char_list)
-            word_chars = open('../model/wordCharList.txt').read().splitlines()[0]
-            corpus = open('../data/corpus.txt').read()
+    def texts_to_sparse(self, texts):
+        """Convert text labels to a sparse tensor for CTC."""
+        indices, values, max_len = [], [], 0
+        for batch_idx, text in enumerate(texts):
+            label = [self.char_list.index(char) for char in text]
+            max_len = max(max_len, len(label))
+            for pos, val in enumerate(label):
+                indices.append([batch_idx, pos])
+                values.append(val)
+        dense_shape = [len(texts), max_len]
+        return tf.sparse.SparseTensor(indices=indices, values=values, dense_shape=dense_shape)
 
-            # decode using the "Words" mode of word beam search
-            from word_beam_search import WordBeamSearch
-            self.decoder = WordBeamSearch(50, 'Words', 0.0, corpus.encode('utf8'), chars.encode('utf8'),
-                                          word_chars.encode('utf8'))
+    def infer_batch(self, batch_imgs):
+        """Run inference on a batch of images."""
+        print("Running inference...")
+        predictions = self.model.predict(batch_imgs)
+        texts = self.decode_predictions(predictions)
+        print("Inference complete.")
+        return texts
 
-            # the input to the decoder must have softmax already applied
-            self.wbs_input = tf.nn.softmax(self.ctc_in_3d_tbc, axis=2)
+    def decode_predictions(self, predictions):
+        """Decode the predictions into readable text."""
+        print("Decoding predictions...")
+        decoded, _ = tf.keras.backend.ctc_decode(predictions, input_length=np.ones(predictions.shape[0]) * predictions.shape[1])
+        texts = []
+        for seq in decoded[0]:
+            texts.append(''.join([self.char_list[c] for c in seq.numpy() if c != -1]))
+        print("Decoding complete.")
+        return texts
 
-    def setup_tf(self) -> Tuple[tf.compat.v1.Session, tf.compat.v1.train.Saver]:
-        """Initialize TF."""
-        print('Python: ' + sys.version)
-        print('Tensorflow: ' + tf.__version__)
+    def save(self, save_path="snapshot"):
+        """Save the model to a file."""
+        self.model.save(save_path)
+        print(f"Model saved to {save_path}.")
 
-        sess = tf.compat.v1.Session()  # TF session
+    def load(self, load_path="snapshot"):
+        """Load a saved model."""
+        self.model = tf.keras.models.load_model(load_path, compile=False)
+        print(f"Model loaded from {load_path}.")
 
-        saver = tf.compat.v1.train.Saver(max_to_keep=1)  # saver saves model to file
-        model_dir = '../model/'
-        latest_snapshot = tf.train.latest_checkpoint(model_dir)  # is there a saved model?
 
-        # if model must be restored (for inference), there must be a snapshot
-        if self.must_restore and not latest_snapshot:
-            raise Exception('No saved model found in: ' + model_dir)
+if __name__ == "__main__":
+    char_list = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    model = Model(char_list=char_list)
+    model.compile_model()
+    
+    # Dummy data
+    batch_imgs = np.random.rand(2, 128, 32, 1)  # 2 images (Height=128, Width=32, Channels=1)
+    batch_labels = ["words", "test"]  # Dummy labels
 
-        # load saved model if available
-        if latest_snapshot:
-            print('Init with stored values from ' + latest_snapshot)
-            saver.restore(sess, latest_snapshot)
-        else:
-            print('Init with new values')
-            sess.run(tf.compat.v1.global_variables_initializer())
-
-        return sess, saver
-
-    def to_sparse(self, texts: List[str]) -> Tuple[List[List[int]], List[int], List[int]]:
-        """Put ground truth texts into sparse tensor for ctc_loss."""
-        indices = []
-        values = []
-        shape = [len(texts), 0]  # last entry must be max(labelList[i])
-
-        # go over all texts
-        for batchElement, text in enumerate(texts):
-            # convert to string of label (i.e. class-ids)
-            label_str = [self.char_list.index(c) for c in text]
-            # sparse tensor must have size of max. label-string
-            if len(label_str) > shape[1]:
-                shape[1] = len(label_str)
-            # put each label into sparse tensor
-            for i, label in enumerate(label_str):
-                indices.append([batchElement, i])
-                values.append(label)
-
-        return indices, values, shape
-
-    def decoder_output_to_text(self, ctc_output: tuple, batch_size: int) -> List[str]:
-        """Extract texts from output of CTC decoder."""
-
-        # word beam search: already contains label strings
-        if self.decoder_type == DecoderType.WordBeamSearch:
-            label_strs = ctc_output
-
-        # TF decoders: label strings are contained in sparse tensor
-        else:
-            # ctc returns tuple, first element is SparseTensor
-            decoded = ctc_output[0][0]
-
-            # contains string of labels for each batch element
-            label_strs = [[] for _ in range(batch_size)]
-
-            # go over all indices and save mapping: batch -> values
-            for (idx, idx2d) in enumerate(decoded.indices):
-                label = decoded.values[idx]
-                batch_element = idx2d[0]  # index according to [b,t]
-                label_strs[batch_element].append(label)
-
-        # map labels to chars for all batch elements
-        return [''.join([self.char_list[c] for c in labelStr]) for labelStr in label_strs]
-
-    def train_batch(self, batch: Batch) -> float:
-        """Feed a batch into the NN to train it."""
-        num_batch_elements = len(batch.imgs)
-        max_text_len = batch.imgs[0].shape[0] // 4
-        sparse = self.to_sparse(batch.gt_texts)
-        eval_list = [self.optimizer, self.loss]
-        feed_dict = {self.input_imgs: batch.imgs, self.gt_texts: sparse,
-                     self.seq_len: [max_text_len] * num_batch_elements, self.is_train: True}
-        _, loss_val = self.sess.run(eval_list, feed_dict)
-        self.batches_trained += 1
-        return loss_val
-
-    @staticmethod
-    def dump_nn_output(rnn_output: np.ndarray) -> None:
-        """Dump the output of the NN to CSV file(s)."""
-        dump_dir = '../dump/'
-        if not os.path.isdir(dump_dir):
-            os.mkdir(dump_dir)
-
-        # iterate over all batch elements and create a CSV file for each one
-        max_t, max_b, max_c = rnn_output.shape
-        for b in range(max_b):
-            csv = ''
-            for t in range(max_t):
-                csv += ';'.join([str(rnn_output[t, b, c]) for c in range(max_c)]) + ';\n'
-            fn = dump_dir + 'rnnOutput_' + str(b) + '.csv'
-            print('Write dump of NN to file: ' + fn)
-            with open(fn, 'w') as f:
-                f.write(csv)
-
-    def infer_batch(self, batch: Batch, calc_probability: bool = False, probability_of_gt: bool = False):
-        """Feed a batch into the NN to recognize the texts."""
-
-        # decode, optionally save RNN output
-        num_batch_elements = len(batch.imgs)
-
-        # put tensors to be evaluated into list
-        eval_list = []
-
-        if self.decoder_type == DecoderType.WordBeamSearch:
-            eval_list.append(self.wbs_input)
-        else:
-            eval_list.append(self.decoder)
-
-        if self.dump or calc_probability:
-            eval_list.append(self.ctc_in_3d_tbc)
-
-        # sequence length depends on input image size (model downsizes width by 4)
-        max_text_len = batch.imgs[0].shape[0] // 4
-
-        # dict containing all tensor fed into the model
-        feed_dict = {self.input_imgs: batch.imgs, self.seq_len: [max_text_len] * num_batch_elements,
-                     self.is_train: False}
-
-        # evaluate model
-        eval_res = self.sess.run(eval_list, feed_dict)
-
-        # TF decoders: decoding already done in TF graph
-        if self.decoder_type != DecoderType.WordBeamSearch:
-            decoded = eval_res[0]
-        # word beam search decoder: decoding is done in C++ function compute()
-        else:
-            decoded = self.decoder.compute(eval_res[0])
-
-        # map labels (numbers) to character string
-        texts = self.decoder_output_to_text(decoded, num_batch_elements)
-
-        # feed RNN output and recognized text into CTC loss to compute labeling probability
-        probs = None
-        if calc_probability:
-            sparse = self.to_sparse(batch.gt_texts) if probability_of_gt else self.to_sparse(texts)
-            ctc_input = eval_res[1]
-            eval_list = self.loss_per_element
-            feed_dict = {self.saved_ctc_input: ctc_input, self.gt_texts: sparse,
-                         self.seq_len: [max_text_len] * num_batch_elements, self.is_train: False}
-            loss_vals = self.sess.run(eval_list, feed_dict)
-            probs = np.exp(-loss_vals)
-
-        # dump the output of the NN to CSV file(s)
-        if self.dump:
-            self.dump_nn_output(eval_res[1])
-
-        return texts, probs
-
-    def save(self) -> None:
-        """Save model to file."""
-        self.snap_ID += 1
-        self.saver.save(self.sess, '../model/snapshot', global_step=self.snap_ID)
+    model.train_batch(batch_imgs, batch_labels, epochs=1)
+    predictions = model.infer_batch(batch_imgs)
+    print(f"Inference results: {predictions}")
+    model.save("snapshot")

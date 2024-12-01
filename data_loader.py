@@ -3,7 +3,7 @@ import random
 from collections import namedtuple
 from typing import Tuple
 import numpy as np
-from path import Path
+from pathlib import Path
 import cv2
 '''
 # not a good module to use to serializing/deserializing image
@@ -37,7 +37,7 @@ class DataLoader:
         self.batch_size = batch_size
         self.samples = []
 
-        f = open(data_dir / 'gt/words.txt')
+        f = open(data_dir/'gt/words.txt')
         chars = set()
         bad_samples_reference = ['a01-117-05-02', 'r06-022-03-05']  # known broken images in IAM dataset
         for line in f:
@@ -155,7 +155,9 @@ class DataLoader:
     # CV2 to get image into the numpy array
     def _get_img(self, i: int) -> np.ndarray:
         """Load image with OpenCV."""
-        img = cv2.imread(str(self.samples[i].file_path), cv2.IMREAD_GRAYSCALE)
+        img_path = self.samples[i].file_path
+        print(f"Loading image: {img_path}")
+        img = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
         # Check if the image was loaded successfully
         if img is None:
             print(f"Warning: Image at path {self.samples[i].file_path} could not be loaded.")
@@ -165,6 +167,7 @@ class DataLoader:
 
     def get_next(self) -> Batch:
         """Get next element."""
+        print("get_next method called")
         batch_range = range(self.curr_idx, min(self.curr_idx + self.batch_size, len(self.samples)))
 
         imgs = [self._get_img(i) for i in batch_range]
