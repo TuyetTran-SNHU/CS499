@@ -84,6 +84,11 @@ class DataLoader:
         '''assign the last part of the sample to validate/test'''
         self.validation_samples = self.samples[split_idx:]
 
+
+        # To make sure the split is happening correctly,
+        print(f"Training samples: {len(self.train_samples)}")
+        print(f"Validation samples: {len(self.validation_samples)}")
+
         # put words into lists
         '''iterate through gt_text strings in the train sample list'''
         self.train_words = [i.gt_text for i in self.train_samples]
@@ -116,7 +121,7 @@ class DataLoader:
         self.curr_set = 'val'
 
     """Current batch index and overall number of batches."""
-    def get_iterator_info(self) -> Tuple[int, int]:
+    """def get_iterator_info(self) -> Tuple[int, int]:
         ''' if statement focus on the training set to ensure stability and consistency'''
         if self.curr_set == 'train':
             num_batches = int(np.floor(len(self.samples) / self.batch_size))  
@@ -127,7 +132,25 @@ class DataLoader:
         # val set: allow last batch to be smaller
         '''display the current running batch using current index over the batch size'''
         curr_batch = self.curr_idx // self.batch_size + 1
-        return curr_batch, num_batches
+        return curr_batch, num_batches"""
+
+    def get_iterator_info(self) -> Tuple[int, int, int]:
+        """
+        Returns:
+        - curr_batch: Current batch index (1-based).
+        - num_batches: Total number of batches.
+        - remaining_batches: Number of batches remaining in the current epoch.
+        """
+        if self.curr_set == 'train':
+            num_batches = int(np.floor(len(self.samples) / self.batch_size))  # Full-sized batches
+        else:
+            num_batches = int(np.ceil(len(self.samples) / self.batch_size))  # Include last smaller batch
+        
+        curr_batch = self.curr_idx // self.batch_size + 1
+        remaining_batches = num_batches - curr_batch + 1
+        
+        return curr_batch, num_batches, remaining_batches
+
     
     """Check is there a next element?"""
     def has_next(self) -> bool:
@@ -172,6 +195,9 @@ class DataLoader:
 
         imgs = [self._get_img(i) for i in batch_range]
         gt_texts = [self.samples[i].gt_text for i in batch_range]
+        if len(imgs) != len(gt_texts):
+            print(f"Warning: Batch size mismatch. Skipping this batch.")
+            return None 
 
         self.curr_idx += self.batch_size
         return Batch(imgs, gt_texts, len(imgs))

@@ -1,14 +1,8 @@
-import os
-import numpy as np
 import tensorflow as tf
+import numpy as np
 from tensorflow.keras import layers, models
 
-# Suppress TensorFlow warnings
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
-# Character list
-char_list = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
+IMG_SIZE = (1000, 1000)  # Example (height, width)
 
 class Model:
     """TensorFlow 2.x compatible model for Handwritten Text Recognition (HTR)."""
@@ -73,36 +67,46 @@ class Model:
     def compile_model(self):
         """Compile the model with CTC loss."""
         print("Compiling model...")
-
-        def ctc_loss(y_true, y_pred):
-            """Custom CTC loss function."""
-            # Ensure y_true is integer and y_pred is float
-            y_true = tf.cast(y_true, dtype=tf.int32)
-            y_pred = tf.cast(y_pred, dtype=tf.float32)
-
-            tf.print("y_true shape (before):", tf.shape(y_true))
-
-            # Compute input lengths (all sequences have the same time steps)
-            input_length = tf.fill([tf.shape(y_pred)[0]], tf.shape(y_pred)[1])  # Shape: [batch_size]
-
-            # Compute label lengths (count non-padded labels in y_true)
-            label_length = tf.reduce_sum(tf.cast(y_true != -1, tf.int32), axis=1)  # Shape: [batch_size]
-
-            # Debugging outputs
-            tf.print("y_true shape:", tf.shape(y_true))
-            tf.print("y_pred shape:", tf.shape(y_pred))
-            tf.print("input_length shape:", tf.shape(input_length))
-            tf.print("label_length shape:", tf.shape(label_length))
-
-            # Compute the CTC loss
-            return tf.keras.backend.ctc_batch_cost(y_true, y_pred, input_length, label_length)
-        
-        self.model.compile(optimizer=tf.keras.optimizers.Adam(), loss=ctc_loss)
+        self.model.compile(optimizer=tf.keras.optimizers.Adam(), loss=self.ctc_loss)
         print("Model compiled successfully.")
+
+    def ctc_loss(self, y_true, y_pred):
+        """Compute CTC loss."""
+        
+        # Compute input lengths (number of time steps for each sample in the batch)
+        input_length = tf.fill([tf.shape(y_pred)[0]], tf.shape(y_pred)[1])  # [batch_size] (same time steps for all samples)
+        
+        # Compute label lengths (number of valid characters for each sample in the batch)
+        label_length = tf.reduce_sum(tf.cast(y_true != -1, tf.int32), axis=1)  # [batch_size] (count non-padded labels)
+
+        # Ensure that y_true is of the correct type (int32)
+        y_true = tf.cast(y_true, tf.int32)  # CTC expects integer labels (indices)
+
+        # Use tf.nn.ctc_loss to calculate the CTC loss
+        loss = tf.reduce_mean(tf.nn.ctc_loss(
+            labels=y_true,
+            logits=y_pred,
+            label_length=label_length,
+            logit_length=input_length,
+            logits_time_major=False,  # set to False if you're using the shape [batch_size, time_steps, num_classes]
+            blank_index=len(self.char_list)  # Assuming the blank index is after the last character in char_list
+        ))
+        
+        return loss
 
     def train_batch(self, batch_imgs, batch_labels, epochs=1):
         """Train the model with a batch of images and labels."""
         print(f"Starting training for {epochs} epochs...")
+
+        # Resize and pad images to a fixed target size (e.g., 256x32)
+        target_height, target_width = IMG_SIZE  # e.g., (32, 256)
+
+        resized_and_padded_imgs = [self.resize_with_padding(img, target_height, target_width) for img in batch_imgs]
+
+        # Convert the list of processed images into a NumPy array
+        batch_imgs = np.array(resized_and_padded_imgs)
+
+        print(f"batch_imgs shape: {batch_imgs.shape}")  # Should be [batch_size, height, width, channels]
 
         # Validate shapes of inputs
         print("Validating shapes...")
@@ -113,17 +117,39 @@ class Model:
 
         # Convert labels to sparse tensor
         sparse_labels = self.texts_to_sparse(batch_labels)
-        
-        # Convert sparse tensor to dense representation with padding (-1)
-        dense_labels = tf.sparse.to_dense(sparse_labels, default_value=-1)
-        
-        # Further validation
-        print("sparse_labels shape:", sparse_labels.dense_shape.numpy())  # Sparse tensor shape
-        print("dense_labels shape:", dense_labels.shape)                 # Dense tensor shape
-        
-        # Train the model
-        self.model.fit(x=batch_imgs, y=dense_labels, epochs=epochs, batch_size=batch_imgs.shape[0])
-        print("Training complete.")
+
+        # Ensure sparse_labels is created successfully
+        if sparse_labels is not None:
+            # Convert sparse tensor to dense representation with padding (-1)
+            dense_labels = tf.sparse.to_dense(sparse_labels, default_value=-1)
+            # Further validation
+            print("sparse_labels shape:", sparse_labels.dense_shape.numpy())  # Sparse tensor shape
+            print("dense_labels shape:", dense_labels.shape)  # Dense tensor shape
+            
+            # Ensure the batch size is consistent
+            target_batch_size = batch_imgs.shape[0]
+            if len(batch_imgs) < target_batch_size:
+                batch_imgs, dense_labels = self.pad_last_batch(batch_imgs, dense_labels, target_batch_size)
+
+            # Train the model (without drop_remainder since we're handling the last batch manually)
+            self.model.fit(x=batch_imgs, y=dense_labels, epochs=epochs, batch_size=batch_imgs.shape[0])
+            print("Training complete.")
+        else:
+            print("Error: Failed to convert labels to sparse tensor.")
+
+    def pad_last_batch(self, batch_imgs, batch_labels, target_batch_size):
+        """Pad the last batch if it's smaller than the batch size."""
+        if len(batch_imgs) < target_batch_size:
+            pad_size = target_batch_size - len(batch_imgs)
+            
+            # Pad images with zeros or an empty placeholder (for example)
+            batch_imgs = np.pad(batch_imgs, ((0, pad_size), (0, 0), (0, 0), (0, 0)), mode='constant')
+            
+            # Pad labels with -1 (or a suitable placeholder)
+            batch_labels = np.pad(batch_labels, ((0, pad_size), (0, 0)), mode='constant', constant_values=-1)
+
+        return batch_imgs, batch_labels
+
 
     def texts_to_sparse(self, texts):
         """Convert text labels to a sparse tensor for CTC."""
@@ -137,13 +163,26 @@ class Model:
         dense_shape = [len(texts), max_len]
         return tf.sparse.SparseTensor(indices=indices, values=values, dense_shape=dense_shape)
 
+    def resize_with_padding(self, img, target_height, target_width):
+        """Resizes image to target size while maintaining aspect ratio and adding padding."""
+        # Ensure the image has 3 dimensions (height, width, channels)
+        if len(img.shape) == 2:  # This checks if the image is 2D (height, width)
+            img = tf.expand_dims(img, axis=-1)  # Add a channel dimension (height, width, 1)
+
+        # Resize image while preserving aspect ratio (nearest neighbor interpolation)
+        img = tf.image.resize(img, (target_height, target_width), method='nearest')
+
+        # Padding to make it exactly the target size
+        padded_img = tf.image.resize_with_crop_or_pad(img, target_height, target_width)
+        return padded_img
+
     def infer_batch(self, batch_imgs):
         """Run inference on a batch of images."""
-        print("Running inference...")
+        print(f"batch_imgs shape: {batch_imgs.shape}")
+
         predictions = self.model.predict(batch_imgs)
-        texts = self.decode_predictions(predictions)
-        print("Inference complete.")
-        return texts
+        print(f"Predictions shape: {predictions.shape}")
+        return predictions
 
     def decode_predictions(self, predictions):
         """Decode the predictions into readable text."""
@@ -164,18 +203,3 @@ class Model:
         """Load a saved model."""
         self.model = tf.keras.models.load_model(load_path, compile=False)
         print(f"Model loaded from {load_path}.")
-
-
-if __name__ == "__main__":
-    char_list = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-    model = Model(char_list=char_list)
-    model.compile_model()
-    
-    # Dummy data
-    batch_imgs = np.random.rand(2, 128, 32, 1)  # 2 images (Height=128, Width=32, Channels=1)
-    batch_labels = ["words", "test"]  # Dummy labels
-
-    model.train_batch(batch_imgs, batch_labels, epochs=1)
-    predictions = model.infer_batch(batch_imgs)
-    print(f"Inference results: {predictions}")
-    model.save("snapshot")

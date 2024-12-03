@@ -160,7 +160,7 @@ class Model:
             word_chars = open('../model/charList.txt').read().splitlines()[0]
 
             # decode using the "Words" mode of word beam search
-            from word_beam_search import WordBeamSearch
+            from ctc import WordBeamSearch
             self.decoder = WordBeamSearch(50, 'Words', 0.0, chars.encode('utf8'),
                                           word_chars.encode('utf8'))
 
