@@ -208,10 +208,10 @@ class Preprocessor:
         max_text_len = res_imgs[0].shape[0] // 4
         ''' trim the ground truth text to the max text length'''
         res_gt_texts = [self._truncate_label(gt_text, max_text_len) for gt_text in batch.gt_texts]
-        return Batch(res_imgs, res_gt_texts, batch.batch_size)
+        return Batch(imgs=res_imgs, gt_texts=res_gt_texts, batch_size=batch.batch_size, img_paths=batch.img_paths)
 
 
-def main():
+'''def main():
     import matplotlib.pyplot as plt
 
     img = cv2.imread('./data_dir/word.png', cv2.IMREAD_GRAYSCALE)
@@ -226,4 +226,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main()'''
