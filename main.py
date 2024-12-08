@@ -6,7 +6,7 @@ import time
 
 
 # Configuration
-data_dir = Path("C:/Users/Tuyet/Desktop/Enhanced Artifact/data_dir")
+data_dir = Path("/Enhanced Artifact/data_dir")
 batch_size = 16
 img_size = (256, 64)  
 epochs = 5  
