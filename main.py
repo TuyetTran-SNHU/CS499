@@ -1,83 +1,102 @@
 from pathlib import Path
-from data_loader import DataLoader, Batch  
-from data_preprocessor import Preprocessor  # Import the Preprocessor class
-from model import Model  
+from data_loader import DataLoader  
+from data_preprocessor import Preprocessor  
+from model import Model 
+import time
+
 
 # Configuration
-DATA_DIR = Path("C:/Users/Lona/Desktop/Enhanced Artifact/data_dir")  # Dataset path
-BATCH_SIZE = 150
-IMG_SIZE = (1000, 1000)  # Target image size (width, height)
-EPOCHS = 1
-CHAR_LIST = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ,.- '\"!`~@#$%^&*()_=+:;[]1234567890?/.,><")  # Recognizable characters
+data_dir = Path("C:/Users/Tuyet/Desktop/Enhanced Artifact/data_dir")
+batch_size = 16
+img_size = (256, 64)  
+epochs = 5  
+char_list = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ,.- '\"!`~@#$%^&*()_=+:;[]1234567890?/.,><")
+blank_token = '<blank>'
+if blank_token not in char_list:
+    char_list.append(blank_token)
+print(f"Character list: {char_list}")
+print(f"Blank token index: {len(char_list) - 1}")
 
 def initialize_data_loader(data_dir, batch_size):
     """Initialize the data loader."""
-    data_loader = DataLoader(data_dir=data_dir, batch_size=batch_size)
-    print(f"Number of samples: {len(data_loader.samples)}")
-    if len(data_loader.samples) == 0:
-        print("No samples found. Check your dataset path or words.txt file.")
+    try:
+        data_loader = DataLoader(data_dir=data_dir, batch_size=batch_size)
+        if not data_loader.samples:
+            raise ValueError("No samples found in the dataset. Check your dataset path or words.txt file.")
+        
+        print(f"Number of samples: {len(data_loader.samples)}")
+        total_batches = (len(data_loader.samples) + batch_size - 1) // batch_size
+        print(f"Number of batches: {total_batches}")
+        
+        print("First few samples:")
+        for sample in data_loader.samples[:5]:
+            print(sample)
+        
+        return data_loader
+    except Exception as e:
+        print(f"Error initializing DataLoader: {e}")
         return None
-
-    total_batches = (len(data_loader.samples) + batch_size - 1) // batch_size  # Ceiling division
-    print(f"Number of batches: {total_batches}")
-
-    print("First few samples:")
-    for sample in data_loader.samples[:5]:
-        print(sample)
-
-    return data_loader
 
 def train_model(data_loader, model, preprocessor, epochs):
     """Train the model using the data loader and preprocess batches."""
     print("\nStarting training process...")
-    data_loader.train_set()
-
-    for epoch in range(epochs):
-        print(f"\nEpoch {epoch + 1}/{epochs}")
-        while data_loader.has_next():
-            batch = data_loader.get_next()
-            processed_batch = preprocessor.process_batch(batch)  # Preprocess the batch
-            model.train_batch(processed_batch.imgs, processed_batch.gt_texts, epochs=1)
-    print("\nTraining completed successfully!")
+    try:
+        model.train(data_loader, preprocessor, epochs)
+        model.save("my_model.h5")
+        print("Model saved to my_model.h5")
+    except Exception as e:
+        print(f"Error during training: {e}")
 
 def test_model(data_loader, model, preprocessor):
-    """Test the model on a validation set."""
+    """Test the model on a validation set and display probabilities."""
     print("\nTesting the model...")
-    data_loader.validation_set()  # Switch to validation/test set
-
-    if data_loader.has_next():
-        batch = data_loader.get_next()
-        processed_batch = preprocessor.process_batch(batch)  # Preprocess the batch
-        predictions = model.infer_batch(processed_batch.imgs)
-
-        print("\nInference results:")
-        for i, (gt, pred) in enumerate(zip(processed_batch.gt_texts, predictions)):
-            print(f"Ground truth: {gt}")
-            print(f"Prediction: {pred}\n")
+    try:
+        data_loader.validation_set()  
+        while data_loader.has_next():
+            batch = data_loader.get_next()
+            processed_batch = preprocessor.process_batch(batch)  
+            predictions, probabilities = model.infer_batch(processed_batch.imgs, calc_probabilities=True)
+            
+            print("\nInference results:")
+            for i, (gt, pred, prob, img_path) in enumerate(
+                zip(processed_batch.gt_texts, predictions, probabilities, processed_batch.img_paths)
+            ):
+                print(f"Sample {i + 1}:")
+                print(f"  Image Path: {img_path}")
+                print(f"  Ground truth: {gt}")
+                print(f"  Prediction: {pred}")
+                print(f"  Probability: {prob:.2f}\n")
+    except Exception as e:
+        print(f"Error during testing: {e}")
 
 def main():
     """Main function to run the training and testing pipeline."""
+    start_time = time.time()
+
     # Initialize DataLoader
-    data_loader = initialize_data_loader(DATA_DIR, BATCH_SIZE)
+    data_loader = initialize_data_loader(data_dir, batch_size)
     if not data_loader:
         return
 
     # Initialize Preprocessor
-    preprocessor = Preprocessor(img_size=IMG_SIZE, data_augmentation=True)
+    preprocessor = Preprocessor(img_size=img_size, data_augmentation=True)
+    print(f"Preprocessor initialized with data_augmentation={preprocessor.data_augmentation}")
 
     # Initialize Model
-    model = Model(char_list=CHAR_LIST)
+    model = Model(char_list=char_list)
     model.compile_model()
 
     # Train the model
-    train_model(data_loader, model, preprocessor, EPOCHS)
+    train_model(data_loader, model, preprocessor, epochs)
 
-    # Test the model
+    # Reload the model and test
+    model.load("my_model.h5")
+    print("Loaded my model for testing.")
     test_model(data_loader, model, preprocessor)
 
-    # Save the trained model
-    model.save("htr_model_snapshot")
-    print("\nModel saved successfully.")
+    # End timer and print total time
+    elapsed_time = time.time() - start_time
+    print(f"\nTotal elapsed time: {elapsed_time:.2f} seconds")
 
 if __name__ == "__main__":
     main()
