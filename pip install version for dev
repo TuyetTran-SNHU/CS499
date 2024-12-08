@@ -1,0 +1,6 @@
+Name: tensorflow
+Version: 2.18.0 
+Name: pillow
+Version: 11.0.0
+Name: numpy
+Version: 2.0.2
