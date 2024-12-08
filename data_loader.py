@@ -1,18 +1,13 @@
-
 import random
 from collections import namedtuple
 from typing import Tuple
 import numpy as np
 from pathlib import Path
 import cv2
-'''
-# not a good module to use to serializing/deserializing image
-import pickle
-'''
 
-
+# Named tuples for samples and batches
 Sample = namedtuple('Sample', 'gt_text, file_path')
-Batch = namedtuple('Batch', 'imgs, gt_texts, batch_size')
+Batch = namedtuple('Batch', 'imgs, gt_texts, batch_size, img_paths')
 
 class DataLoader:
     """
@@ -20,39 +15,31 @@ class DataLoader:
     see: http://www.fki.inf.unibe.ch/databases/iam-handwriting-database
     """
 
-    def __init__(self,
-                 data_dir: Path,
-                 batch_size: int,
-                 # splitting data to 90/100
-                 data_split: float = 0.90, 
-                 fast: bool = True) -> None:
-        """Loader for dataset."""
-
-        assert data_dir.exists()
+    def __init__(self, data_dir: Path, batch_size: int, data_split: float = 0.90, fast: bool = True) -> None:
+        """Initialize the data loader."""
+        assert data_dir.exists(), "Data directory does not exist."
 
         self.fast = fast
         self.data_augmentation = False
-        # current index
         self.curr_idx = 0
         self.batch_size = batch_size
         self.samples = []
 
-        f = open(data_dir/'gt/words.txt')
+        # Load dataset information
+        f = open(data_dir / 'gt/words.txt')
         chars = set()
-        bad_samples_reference = ['a01-117-05-02', 'r06-022-03-05']  # known broken images in IAM dataset
+        bad_samples_reference = ['a01-117-05-02', 'r06-022-03-05']  # Known broken images in IAM dataset
         for line in f:
-            # ignore empty and comment lines
+            # Ignore empty and comment lines
             line = line.strip()
             if not line or line[0] == '#':
                 continue
 
-            '''split the data into 9 collums: - a01-000u-00-00 ok 154 408 768 27 51 AT A - will be splitting by the space in between in result of 9 collums'''
+            # Split the line into parts
             line_split = line.split(' ')
-            '''checking the length of the line_split'''
-            assert len(line_split) >= 9
+            assert len(line_split) >= 9, f"Invalid line format: {line}"
 
-            # filename: part1-part2-part3 --> part1/part1-part2/part1-part2-part3.png
-            '''splitting a01-000u-00-00 to get to the image'''
+            # Generate file path for the image
             file_name_split = line_split[0].split('-')
             file_name_subdir1 = file_name_split[0]
             file_name_subdir2 = f'{file_name_split[0]}-{file_name_split[1]}'
@@ -63,56 +50,33 @@ class DataLoader:
                 print('Ignoring known broken image:', file_name)
                 continue
 
-            # GT text are columns starting at 9
-            ''' gt_text is the reference text associated with an image, which guides the model in learning to accurately predict the text content from similar images during training and evaluation.'''
-            # adding a space betwween the collums 8 and 9 
-            ''' if a01-000u-00-00 ok 154 408 768 27 51 AT A eg. the colum 8 and 9 is AT A and add the space in between, 
-            gt_text = "AT A"'''
+            # Extract ground truth text
             gt_text = ' '.join(line_split[8:])
-            '''placing all character to the known list call chars, 
-            chars = 'A','T',' ' '''
-            chars = chars.union(set(list(gt_text)))
+            chars = chars.union(set(gt_text))
 
-            # put sample into empty list
+            # Add sample
             self.samples.append(Sample(gt_text, file_name))
 
-        # split into training and validation set: 90% - 10%
-        '''the numeric number of split_idx = value of (0.90 * the length of the sample)'''
+        # Split into training and validation sets
         split_idx = int(data_split * len(self.samples))
-        '''assign the first part of the sample to train'''
         self.train_samples = self.samples[:split_idx]
-        '''assign the last part of the sample to validate/test'''
         self.validation_samples = self.samples[split_idx:]
 
-
-        # To make sure the split is happening correctly,
         print(f"Training samples: {len(self.train_samples)}")
         print(f"Validation samples: {len(self.validation_samples)}")
 
-        # put words into lists
-        '''iterate through gt_text strings in the train sample list'''
-        self.train_words = [i.gt_text for i in self.train_samples]
-        '''iterate through gt_text strings in the validate/testing sample list'''
-        self.validation_words = [i.gt_text for i in self.validation_samples]
-
-        # start with train set
-        ''' method train_set'''
+        # Collect character list and set initial training set
+        self.char_list = sorted(list(chars))
         self.train_set()
 
-        # list of all chars in dataset
-        ''' sort and place character in the chars list to char_list'''
-        self.char_list = sorted(list(chars))
-
-    ''' Modular function called train_set'''
     def train_set(self) -> None:
-        """Switch to randomly chosen subset of training set."""
+        """Switch to training set."""
         self.data_augmentation = True
         self.curr_idx = 0
         random.shuffle(self.train_samples)
         self.samples = self.train_samples
         self.curr_set = 'train'
 
-    '''Modular function called validation_set also known as test'''
     def validation_set(self) -> None:
         """Switch to validation set."""
         self.data_augmentation = False
@@ -120,85 +84,38 @@ class DataLoader:
         self.samples = self.validation_samples
         self.curr_set = 'val'
 
-    """Current batch index and overall number of batches."""
-    """def get_iterator_info(self) -> Tuple[int, int]:
-        ''' if statement focus on the training set to ensure stability and consistency'''
-        if self.curr_set == 'train':
-            num_batches = int(np.floor(len(self.samples) / self.batch_size))  
-        # train set: only full-sized batches
-        # else statment focus on validation set'''
-        else:
-            num_batches = int(np.ceil(len(self.samples) / self.batch_size))  
-        # val set: allow last batch to be smaller
-        '''display the current running batch using current index over the batch size'''
-        curr_batch = self.curr_idx // self.batch_size + 1
-        return curr_batch, num_batches"""
-
     def get_iterator_info(self) -> Tuple[int, int, int]:
-        """
-        Returns:
-        - curr_batch: Current batch index (1-based).
-        - num_batches: Total number of batches.
-        - remaining_batches: Number of batches remaining in the current epoch.
-        """
+        """Return current batch index, total batches, and remaining batches."""
         if self.curr_set == 'train':
             num_batches = int(np.floor(len(self.samples) / self.batch_size))  # Full-sized batches
         else:
-            num_batches = int(np.ceil(len(self.samples) / self.batch_size))  # Include last smaller batch
-        
+            num_batches = int(np.ceil(len(self.samples) / self.batch_size))  # Allow smaller last batch
+
         curr_batch = self.curr_idx // self.batch_size + 1
         remaining_batches = num_batches - curr_batch + 1
-        
         return curr_batch, num_batches, remaining_batches
 
-    
-    """Check is there a next element?"""
     def has_next(self) -> bool:
-        '''if statement check on the training set to ensure the sample is less than or equal to it sample size'''
-        if self.curr_set == 'train':
-            return self.curr_idx + self.batch_size <= len(self.samples)  
-        # train set: only full-sized batches
-        # else statement check if the validation set is less than the validation training size and return True or False 
-        else:
-            return self.curr_idx < len(self.samples)  # val set: allow last batch to be smaller
-        
+        """Check if there are more batches to process."""
+        return self.curr_idx < len(self.samples)
 
-    '''  # Will use CV2 instead of pickle 
-    def _get_img(self, i: int) -> np.ndarray:
-        if self.fast:
-            with self.env.begin() as txn:
-                basename = Path(self.samples[i].file_path).basename()
-                data = txn.get(basename.encode("ascii"))
-                img = pickle.loads(data)
-        else:
-            img = cv2.imread(self.samples[i].file_path, cv2.IMREAD_GRAYSCALE)
-
-        return img
-        '''
-    # CV2 to get image into the numpy array
     def _get_img(self, i: int) -> np.ndarray:
         """Load image with OpenCV."""
         img_path = self.samples[i].file_path
         print(f"Loading image: {img_path}")
         img = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
-        # Check if the image was loaded successfully
         if img is None:
-            print(f"Warning: Image at path {self.samples[i].file_path} could not be loaded.")
-            # Optionally, you could raise an exception or handle this in another way
-            raise FileNotFoundError(f"Image file not found at {self.samples[i].file_path}")
+            raise FileNotFoundError(f"Image file not found at {img_path}")
         return img
 
     def get_next(self) -> Batch:
-        """Get next element."""
-        print("get_next method called")
+        """Get the next batch of images, ground truth texts, and file paths."""
         batch_range = range(self.curr_idx, min(self.curr_idx + self.batch_size, len(self.samples)))
 
         imgs = [self._get_img(i) for i in batch_range]
         gt_texts = [self.samples[i].gt_text for i in batch_range]
-        if len(imgs) != len(gt_texts):
-            print(f"Warning: Batch size mismatch. Skipping this batch.")
-            return None 
+        img_paths = [str(self.samples[i].file_path) for i in batch_range]  # Include image paths
 
         self.curr_idx += self.batch_size
-        return Batch(imgs, gt_texts, len(imgs))
+        return Batch(imgs=imgs, gt_texts=gt_texts, batch_size=len(imgs), img_paths=img_paths)
 
