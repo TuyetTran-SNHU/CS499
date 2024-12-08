@@ -1,8 +1,9 @@
 import tensorflow as tf
 import numpy as np
 from tensorflow.keras import layers, models
+import time
 
-IMG_SIZE = (1000, 1000)  # Example (height, width)
+IMG_SIZE = (256, 64)  # Example (height, width)
 
 class Model:
     """TensorFlow 2.x compatible model for Handwritten Text Recognition (HTR)."""
@@ -11,8 +12,15 @@ class Model:
         """Initialize the HTR model."""
         self.char_list = char_list
         print("Initializing model...")
+        # Ensure the blank token is included and is the last index
+        blank_index = len(self.char_list) - 1
+        assert '<blank>' == self.char_list[blank_index], "Blank token must be the last index in char_list."
+        print(f"Blank token index: {blank_index}")
+
+
         # Build the model
         self.model = self.build_model()
+        ''' display the sequencial chart'''
         self.model.summary()
         print("Model initialized successfully.")
 
@@ -71,30 +79,36 @@ class Model:
         print("Model compiled successfully.")
 
     def ctc_loss(self, y_true, y_pred):
-        """Compute CTC loss."""
+        """Compute CTC loss with debug prints."""
         
-        # Compute input lengths (number of time steps for each sample in the batch)
-        input_length = tf.fill([tf.shape(y_pred)[0]], tf.shape(y_pred)[1])  # [batch_size] (same time steps for all samples)
+        # Ensure labels are integers
+        y_true = tf.cast(y_true, tf.int32)  # Labels must be integer indices
         
-        # Compute label lengths (number of valid characters for each sample in the batch)
-        label_length = tf.reduce_sum(tf.cast(y_true != -1, tf.int32), axis=1)  # [batch_size] (count non-padded labels)
-
-        # Ensure that y_true is of the correct type (int32)
-        y_true = tf.cast(y_true, tf.int32)  # CTC expects integer labels (indices)
-
-        # Use tf.nn.ctc_loss to calculate the CTC loss
+        # Compute input lengths: same for all samples in the batch
+        input_length = tf.fill([tf.shape(y_pred)[0]], tf.shape(y_pred)[1])  # [batch_size]
+        
+        # Compute label lengths: count valid characters (non-padding)
+        label_length = tf.reduce_sum(tf.cast(y_true != -1, tf.int32), axis=1)  # [batch_size]
+        
+        # Debugging prints
+        print(f"y_pred shape: {tf.shape(y_pred)}")  # Shape of logits (expected: [batch_size, time_steps, num_classes])
+        print(f"y_true shape: {tf.shape(y_true)}")  # Shape of labels (expected: [batch_size, max_label_length])
+        print(f"Input lengths: {input_length}")     # Computed lengths of logits
+        print(f"Label lengths: {label_length}")     # Computed lengths of labels
+        
+        # Calculate CTC loss
         loss = tf.reduce_mean(tf.nn.ctc_loss(
             labels=y_true,
             logits=y_pred,
             label_length=label_length,
             logit_length=input_length,
-            logits_time_major=False,  # set to False if you're using the shape [batch_size, time_steps, num_classes]
-            blank_index=len(self.char_list)  # Assuming the blank index is after the last character in char_list
+            logits_time_major=False,  # Shape: [batch_size, time_steps, num_classes]
+            blank_index=len(self.char_list)  # Blank token index
         ))
         
         return loss
 
-    def train_batch(self, batch_imgs, batch_labels, epochs=1):
+    '''def train_batch(self, batch_imgs, batch_labels, epochs=1):
         """Train the model with a batch of images and labels."""
         print(f"Starting training for {epochs} epochs...")
 
@@ -135,7 +149,41 @@ class Model:
             self.model.fit(x=batch_imgs, y=dense_labels, epochs=epochs, batch_size=batch_imgs.shape[0])
             print("Training complete.")
         else:
-            print("Error: Failed to convert labels to sparse tensor.")
+            print("Error: Failed to convert labels to sparse tensor.")'''
+    def train(self, data_loader, preprocessor, epochs):
+        """Train the model with a DataLoader and Preprocessor."""
+        print("\nStarting training process...")
+        data_loader.train_set()
+
+        # Timer for the entire training process
+        training_start_time = time.time()
+
+        for epoch in range(epochs):
+            print(f"\nEpoch {epoch + 1}/{epochs}")
+            while data_loader.has_next():
+                batch = data_loader.get_next()
+                processed_batch = preprocessor.process_batch(batch)  # Preprocess the batch
+
+                # Start timer for the batch
+                batch_start_time = time.time()
+
+                # Train the model on the batch
+                batch_imgs = np.array(processed_batch.imgs)
+                batch_labels = self.texts_to_sparse(processed_batch.gt_texts)
+
+                if batch_labels is not None:
+                    dense_labels = tf.sparse.to_dense(batch_labels, default_value=-1)
+
+                    # Train the model
+                    self.model.fit(x=batch_imgs, y=dense_labels, epochs=1, batch_size=batch_imgs.shape[0])
+
+                # End timer for the batch and print elapsed time
+                batch_end_time = time.time()
+                print(f"Time taken for batch: {batch_end_time - batch_start_time:.2f} seconds")
+
+        # End timer for the entire training process and print elapsed time      
+        training_end_time = time.time()
+        print(f"\nTraining completed successfully in {training_end_time - training_start_time:.2f} seconds!")
 
     def pad_last_batch(self, batch_imgs, batch_labels, target_batch_size):
         """Pad the last batch if it's smaller than the batch size."""
@@ -176,15 +224,44 @@ class Model:
         padded_img = tf.image.resize_with_crop_or_pad(img, target_height, target_width)
         return padded_img
 
-    def infer_batch(self, batch_imgs):
+    '''def infer_batch(batch_imgs):
         """Run inference on a batch of images."""
+        # Ensure batch_imgs is the expected type (e.g., NumPy array or TensorFlow tensor)
+        if isinstance(batch_imgs, list):
+            batch_imgs = np.array(batch_imgs)
+
         print(f"batch_imgs shape: {batch_imgs.shape}")
 
+        # Generate predictions using the model
         predictions = self.model.predict(batch_imgs)
-        print(f"Predictions shape: {predictions.shape}")
-        return predictions
 
-    def decode_predictions(self, predictions):
+        print(f"Predictions shape: {predictions.shape}")
+        return predictions'''
+    def infer_batch(self, batch_imgs, calc_probabilities=False):
+        """Run inference on a batch of images and optionally calculate probabilities."""
+        if isinstance(batch_imgs, list):
+            batch_imgs = np.array(batch_imgs)
+
+        print(f"batch_imgs shape: {batch_imgs.shape}")
+        
+        # generate prediction 
+        predictions = self.model.predict(batch_imgs)
+        #debugging
+        print(f"Predictions shape: {predictions.shape}")
+        print(f"Predictions: {predictions}")
+
+        texts = self.decode_predictions(predictions)
+
+        if calc_probabilities:
+            max_probs = np.max(predictions, axis=-1)  # Max probability per timestep
+            print(f"Max probabilities per timestep: {max_probs}")
+            probabilities = np.mean(max_probs, axis=1)  # Average over timesteps
+            print(f"Average probabilities for each sample: {probabilities}")
+        else:
+            probabilities = None
+
+        return texts, probabilities
+    '''def decode_predictions(self, predictions):
         """Decode the predictions into readable text."""
         print("Decoding predictions...")
         decoded, _ = tf.keras.backend.ctc_decode(predictions, input_length=np.ones(predictions.shape[0]) * predictions.shape[1])
@@ -192,14 +269,40 @@ class Model:
         for seq in decoded[0]:
             texts.append(''.join([self.char_list[c] for c in seq.numpy() if c != -1]))
         print("Decoding complete.")
+        return texts'''
+    def decode_predictions(self, predictions):
+        """Decode the predictions into readable text."""
+        print("Decoding predictions...")
+        blank_index = len(self.char_list) - 1
+        print(f"Blank token index during decoding: {blank_index}")
+
+        # Decode using Keras' built-in CTC decoder
+        decoded, _ = tf.keras.backend.ctc_decode(
+            predictions, 
+            input_length=np.ones(predictions.shape[0]) * predictions.shape[1]
+        )
+
+        # Convert decoded tensor to readable text
+        texts = []
+        for seq in decoded[0]:
+            if seq.shape[0] == 0:
+                # Handle empty sequences
+                texts.append("")
+                continue
+
+            # Convert indices to characters, ignoring blanks and invalid indices
+            text = ''.join([self.char_list[c] for c in seq.numpy() if c != -1 and c < len(self.char_list)])
+            texts.append(text)
+
+        print(f"Decoded texts: {texts}")
         return texts
 
-    def save(self, save_path="snapshot"):
+    def save(self, save_path="my_model.h5"):
         """Save the model to a file."""
         self.model.save(save_path)
         print(f"Model saved to {save_path}.")
 
-    def load(self, load_path="snapshot"):
+    def load(self, load_path="my_model.h5"):
         """Load a saved model."""
         self.model = tf.keras.models.load_model(load_path, compile=False)
         print(f"Model loaded from {load_path}.")
