@@ -1,14 +1,21 @@
 # CS499-Capstone Handwriting recognition
 
 ## Table of Content 
+ * [Self-Assessment](#Self-Assessment)
+ * [Enhanced-Artifacts](#Enhanced-Artifacts)
 
+
+# Self-Assessment
+Throughout my journey in the Computer Science program, the capstone project has been a remarkable experience. It allowed me to dive deeper into areas I’m passionate about, showcase what I’ve learned, and share my knowledge with others. This self-assessment reflects on my growth, challenges, and achievements, highlighting how the program has prepared me to tackle complex problems, design effective solutions, and adapt to evolving technologies. It also serves as an introduction to my portfolio, offering an overview of my academic and personal growth. This repository acts as a foundational documentation of my journey as an individual and provides a way for others to better understand my skills, experiences, and aspirations.
+
+
+# Enhanced-Artifacts
 * [lmdb_setup](#lmbd_setup)
 * [data_loader](#data_loader)
 * [data_preprocessor](#data_preprocessor)
 * [model](#model)
 * [main](#main)
 * [program](#program)
-
 
 # lmdb_setup
 ## Database 
