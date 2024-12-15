@@ -28,10 +28,6 @@ The artifacts in my ePortfolio reflect how these skills come together, showcasin
 ## lmdb_setup
 This program is designed to take a collection of images stored in a folder, convert them into a compact database format called LMDB, and store the images efficiently for future use. It first checks if the database (LMDB) already exists, then reads all .png images in a specified folder. Each image is converted to grayscale, encoded into PNG format, and saved into the LMDB using a unique identifier. This process helps in organizing and compressing image data, making it easier to manage and access for tasks like machine learning or large-scale data handling.
 
-## Database 
-This file is designed to take a collection of images stored in a folder, convert them into a compact database format called LMDB, and store the images efficiently for future use. It first checks if the database (LMDB) already exists, then reads all .png images in a specified folder. Each image is converted to grayscale, encoded into PNG format, and saved into the LMDB using a unique identifier (the image file's name). This process helps in organizing and compressing image data, making it easier to manage and access for tasks like machine learning or large-scale data handling.
-
-
 ## data_loader
 The purpose of this file is to define a program that helps organize and prepare image data for a ml model, specifically for recognizing text in images. It takes a folder of images and a file with information about each image (like its correct text) and splits the data into two groups: one for training the model and another for testing it. It can load images quickly from a database or directly from files, resize them to a standard size, and create "batches" of images and their correct text labels. This makes it easy to feed the data into a model in small, manageable chunks. Additionally, it includes tools to check if images are missing or can't be processed and logs these issues for troubleshooting.
 
