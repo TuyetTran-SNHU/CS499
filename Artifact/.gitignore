@@ -1,0 +1,42 @@
+# Ignore the .env file
+*.env
+
+
+# Ignore the Model 
+*.h5
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignored the list of unnessecary files 
+Ignore_files/
+data_dir/
+
+# Ignore all the logs 
+*.logs
+
+
+# Virtual environment folders
+venv/
+env/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs and other generated files
+*.log
+*.csv
+*.sqlite3
+
+# VS Code settings (if you're using VS Code)
+.vscode/
+
+# PyCharm settings (if you're using PyCharm)
+.idea/
+node_modules

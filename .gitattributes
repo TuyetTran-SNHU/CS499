@@ -1,3 +1,0 @@
-data_dir/lmdb/data.mdb filter=lfs diff=lfs merge=lfs -text
-build/program/program.pkg filter=lfs diff=lfs merge=lfs -text
-dist/program.exe filter=lfs diff=lfs merge=lfs -text
