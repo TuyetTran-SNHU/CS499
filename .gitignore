@@ -1,9 +1,9 @@
 # Ignore the .env file
-.env
+*.env
 
 
 # Ignore the Model 
-.h5
+*.h5
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -12,7 +12,7 @@ __pycache__/
 
 # Ignored the list of unnessecary files 
 Ignore_files/
-data_dir
+data_dir/
 
 # Ignore all the logs 
 *.logs
