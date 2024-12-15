@@ -28,7 +28,7 @@ The purpose of this file is to build a model for recognizing handwritten text fr
 And lastly, this file is the main program that brings everything together to train and test a handwriting recognition model. It uses three key components: a DataLoader to organize and load image data, a Preprocessor to prepare and augment images for training, and a Model to learn how to recognize handwritten text. It first checks if a database (LMDB) of preprocessed images exists, creating it if necessary. The model is trained using the data, and its performance is evaluated on unseen validation images. After training, the model is saved and tested to see how well it predicts the text from the input images. The program ensures the whole process runs smoothly, from data preparation to testing the final trained model.
 
 # program
-
+This extra file is to create a simple handwriting recognition app with a graphical user interface (GUI). It allows users to upload an image of handwritten text, processes the image, and predicts the text using a trained machine learning model. The program uses Tkinter for the GUI, allowing users to select an image file from their computer. The image is displayed in the app, processed by a preprocessor to prepare it for the model, and then the model predicts the text. The result is displayed on the screen. This app combines machine learning and user-friendly design to make handwriting recognition accessible and interactive.
 
 
 
