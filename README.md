@@ -7,6 +7,7 @@
 * [data_preprocessor](#data_preprocessor)
 * [model](#model)
 * [main](#main)
+* [program](#program)
 
 
 # lmdb_setup
@@ -26,6 +27,7 @@ The purpose of this file is to build a model for recognizing handwritten text fr
 # main 
 And lastly, this file is the main program that brings everything together to train and test a handwriting recognition model. It uses three key components: a DataLoader to organize and load image data, a Preprocessor to prepare and augment images for training, and a Model to learn how to recognize handwritten text. It first checks if a database (LMDB) of preprocessed images exists, creating it if necessary. The model is trained using the data, and its performance is evaluated on unseen validation images. After training, the model is saved and tested to see how well it predicts the text from the input images. The program ensures the whole process runs smoothly, from data preparation to testing the final trained model.
 
+# program
 
 
 
