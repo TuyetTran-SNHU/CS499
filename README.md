@@ -2,7 +2,7 @@
 
 ## Table of Content 
 
-* [Database](#Light Mapping Database)
+* [Light Mapping Database](#Light Mapping Database)
 
 
 
