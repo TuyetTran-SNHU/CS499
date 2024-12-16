@@ -29,7 +29,7 @@ The artifacts in my ePortfolio reflect how these skills come together, showcasin
 >[Basic Cipher Encryption](https://github.com/TuyetTran-SNHU/CS499/tree/main/Undergrad%20Projects/Caesar%20Cipher)
 
 >### Policy Guide
->[GreenPace: Security Policy Guide]
+>[GreenPace: Security Policy Guide]()
 
 
 ### Data Structures and Algorithms
@@ -38,11 +38,11 @@ The artifacts in my ePortfolio reflect how these skills come together, showcasin
 *(Enhanced Artifact)(#Enhanced_Artifact)
 
 > ### Basic game Algorithm
->[BasicRoch/Paper/Scissor Game]()
+>[BasicRoch/Paper/Scissor Game](https://github.com/TuyetTran-SNHU/CS499/blob/main/Undergrad%20Projects/Rock-Paper-Sisccor%20Game/rock%20paper%20scissor%20block%20diagram.pdf)
 
->[Brandon Agogrithm]()
+>[Brandona Algorithm](https://github.com/TuyetTran-SNHU/CS499/blob/main/Undergrad%20Projects/System%20Developements/Brandona%20Project/Day%203%20System%20Preview%20and%20Usecase%20and%20Work%20Flow%20Diagram%20.docx)
 
->[Enhanced Artifacts Alogrithm]()
+>[Enhanced Artifacts Alogrithm](https://github.com/TuyetTran-SNHU/CS499/blob/main/Enhanced%20Artifact/model.py)
 
 
 
