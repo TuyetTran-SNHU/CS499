@@ -48,9 +48,9 @@ The artifacts in my ePortfolio reflect how these skills come together, showcasin
 
 ### Database
 *[SQL](#SQL)
-*(MongoDB-Animal Shelter)(#MongoDB_Animal_Shelter)
-*(MongoDB-Travlr Application)(#MongoDB_Travlr _Application)
-*(MongoDB-Enhanced Artifact)(#MongoDB_Enhanced _Artifact)
+*(MongoDB-Animal-Shelter)(#MongoDBAnimalShelter)
+*(MongoDB-Travlr-Application)(#MongoDBTravlrApplication)
+*(MongoDB-Enhanced-Artifact)(#MongoDBEnhancedArtifact)
 
 ### System Development
 *(Enhanced Artifact)(#Enhanced_Artifact)
