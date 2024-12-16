@@ -16,5 +16,6 @@ Learning data structures and algorithms sharpened my problem-solving skills and 
 The artifacts in my ePortfolio reflect how these skills come together, showcasing my ability to solve real-world problems, design effective solutions, and create secure, user-focused systems. Each artifact highlights a key area of my growth and demonstrates my readiness to contribute meaningfully to the computer science field while bringing value and enjoyment to users.
 
 ## Skills
+* []
 * [Data Structures and Alogrithms](#datastructure-alogrithm)
-* [data-base](#Skills)
+* [Database](#database)
