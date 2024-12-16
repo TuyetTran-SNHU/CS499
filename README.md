@@ -23,14 +23,37 @@ The artifacts in my ePortfolio reflect how these skills come together, showcasin
 
 ### Security 
 * [Basic Encryption](#Basic_Encryption)
+* [GreenPace: Security Policy Guide][#Security_Policy_Guide)
 
-### Basic Encryption 
-[Basic Cipher Encryption](https://github.com/TuyetTran-SNHU/CS499/tree/main/Undergrad%20Projects/Caesar%20Cipher)
+>### Basic Encryption 
+>[Basic Cipher Encryption](https://github.com/TuyetTran-SNHU/CS499/tree/main/Undergrad%20Projects/Caesar%20Cipher)
+
+>### Policy Guide
+>[GreenPace: Security Policy Guide]
 
 
 ### Data Structures and Algorithms
+*(Basic Roch/Paper/Scissor Game)(#Basic_Roch/Paper/Scissor_Game)
+*(Brandona Application)(#Brandona_Application)
+*(Enhanced Artifact)(#Enhanced_Artifact)
+
+> ### Basic game Algorithm
+>[BasicRoch/Paper/Scissor Game]()
+
+>[Brandon Agogrithm]()
+
+>[Enhanced Artifacts Alogrithm]()
+
+
 
 ### Database
+*[SQL](#SQL)
+*(MongoDB-Animal Shelter)(#MongoDB_Animal_Shelter)
+*(MongoDB-Travlr Application)(#MongoDB_Travlr _Application)
+*(MongoDB-Enhanced Artifact)(#MongoDB_Enhanced _Artifact)
 
-### System Developement
+### System Development
+*(Enhanced Artifact)(#Enhanced_Artifact)
+*(Brandona Application)(#Brandona_Application)
+*(Travlr Application)(#Travlr_Application)
 
