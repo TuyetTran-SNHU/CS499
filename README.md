@@ -22,8 +22,12 @@ The artifacts in my ePortfolio reflect how these skills come together, showcasin
 * [System Development](#System_Development)
 
 ### Security 
+* [Basic Encryption](#Basic_Encryption)
 
-### Data Structures and Alogrithms
+### Basic Encryption 
+[Basic Cipher Encryption]
+
+### Data Structures and Algorithms
 
 ### Database
 
