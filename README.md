@@ -31,7 +31,6 @@ The artifacts in my ePortfolio reflect how these skills come together, showcasin
 >### Policy Guide
 >[GreenPace: Security Policy Guide]()
 
-
 ### Data Structures and Algorithms
 *(Basic Roch/Paper/Scissor Game)(#Basic_Roch/Paper/Scissor_Game)
 *(Brandona Application)(#Brandona_Application)
@@ -70,7 +69,10 @@ The artifacts in my ePortfolio reflect how these skills come together, showcasin
 *[Travlr Application](#Travlr_Application)
 
 >### Enhanced Artifact
+>[Enhanced Artifacts](https://github.com/TuyetTran-SNHU/CS499/tree/main/Enhanced%20Artifact)
 >### Animal Shelter
+>[Animal Shelter](https://github.com/TuyetTran-SNHU/CS499/tree/main/Undergrad%20Projects/Grazioso%20Salvare%20Animal%20Shelter)
 >### Brandona Application
->>### Travlr Application
-
+>[Brandona Application](https://github.com/TuyetTran-SNHU/CS499/tree/main/Undergrad%20Projects/Grazioso%20Salvare%20Animal%20Shelter)
+>### Travlr Application
+>[Travlr Application]()
