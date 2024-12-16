@@ -40,20 +40,37 @@ The artifacts in my ePortfolio reflect how these skills come together, showcasin
 > ### Basic game Algorithm
 >[BasicRoch/Paper/Scissor Game](https://github.com/TuyetTran-SNHU/CS499/blob/main/Undergrad%20Projects/Rock-Paper-Sisccor%20Game/rock%20paper%20scissor%20block%20diagram.pdf)
 
+>### Brandona Application
 >[Brandona Algorithm](https://github.com/TuyetTran-SNHU/CS499/blob/main/Undergrad%20Projects/System%20Developements/Brandona%20Project/Day%203%20System%20Preview%20and%20Usecase%20and%20Work%20Flow%20Diagram%20.docx)
 
+>### Enhanced Artifact
 >[Enhanced Artifacts Alogrithm](https://github.com/TuyetTran-SNHU/CS499/blob/main/Enhanced%20Artifact/model.py)
-
 
 
 ### Database
 *[SQL](#SQL)
-*(MongoDB-Animal-Shelter)(#MongoDBAnimalShelter)
-*(MongoDB-Travlr-Application)(#MongoDBTravlrApplication)
-*(MongoDB-Enhanced-Artifact)(#MongoDBEnhancedArtifact)
+*[MongoDB-Animal-Shelter](#MongoDBAnimalShelter)
+*[MongoDB-Travlr-Application](#MongoDBTravlrApplication)
+*[MongoDB-Enhanced-Artifact](#MongoDBEnhancedArtifact)
+
+>### SQL
+>[SQL](https://github.com/TuyetTran-SNHU/CS499/blob/main/Undergrad%20Projects/SQL/SQL.docx)
+>### Animal Shelter
+>[Mongodb](https://github.com/TuyetTran-SNHU/CS499/blob/main/Undergrad%20Projects/Grazioso%20Salvare%20Animal%20Shelter/Client%20-%20Server%20Development.docx)
+>### Travlr Application
+>[Mongodb]()
+>### Enhanced Artifact
+>[Mongodb_API](https://github.com/TuyetTran-SNHU/CS499/blob/main/Original%20Artifact/access_pymongo.py)
+>[Mongodb_documentaion](https://github.com/TuyetTran-SNHU/CS499/blob/main/Narrative/Journal%20M02-1_%20Original%20Artifacts%20Review%20.docx)
 
 ### System Development
-*(Enhanced Artifact)(#Enhanced_Artifact)
-*(Brandona Application)(#Brandona_Application)
-*(Travlr Application)(#Travlr_Application)
+*[Enhanced Artifact](#Enhanced_Artifact)
+*[Animal-Shelter](#AnimalShelter)
+*[Brandona Application](#Brandona_Application)
+*[Travlr Application](#Travlr_Application)
+
+>### Enhanced Artifact
+>### Animal Shelter
+>### Brandona Application
+>>### Travlr Application
 
